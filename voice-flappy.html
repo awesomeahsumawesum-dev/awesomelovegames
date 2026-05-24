@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Voice Joy ✨ Sing to Fly!</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&family=Fredoka+One&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#0d0820;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:'Nunito',sans-serif;overflow:hidden;touch-action:none;}
+canvas{display:block;}
+
+/* HUD */
+#hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;z-index:10;pointer-events:none;background:linear-gradient(to bottom,rgba(13,8,32,0.7),transparent);}
+#score-display{font-family:'Fredoka One',cursive;font-size:1.8rem;color:#fff;text-shadow:0 0 20px #ff88cc;}
+/* note-display redefined below */
+#combo-display{font-family:'Fredoka One',cursive;font-size:1rem;color:#ffee44;text-shadow:0 0 16px #ffaa00;opacity:0;transition:opacity 0.3s;text-align:right;}
+
+/* Singing meter */
+#sing-meter{
+  position:fixed;left:10px;top:50%;transform:translateY(-50%);
+  width:18px;height:200px;background:rgba(255,255,255,0.08);
+  border-radius:10px;overflow:hidden;z-index:10;pointer-events:none;
+  border:1px solid rgba(255,255,255,0.1);
+}
+#sing-fill{
+  position:absolute;bottom:0;left:0;right:0;
+  background:linear-gradient(to top,#ff4488,#ffaa00,#ffee44,#44ffaa,#44aaff,#aa66ff);
+  border-radius:10px;transition:height 0.08s;
+  box-shadow:0 0 10px currentColor;
+}
+#sing-label{position:fixed;left:2px;top:calc(50% + 108px);font-size:0.38rem;color:rgba(255,255,255,0.3);font-family:monospace;letter-spacing:1px;z-index:10;transform:rotate(-90deg) translateX(-50%);transform-origin:left center;white-space:nowrap;pointer-events:none;}
+
+/* Cents tuning ring around note display */
+#note-display{font-family:'Fredoka One',cursive;font-size:1.1rem;color:#ffee44;text-shadow:0 0 12px #ffaa00;text-align:center;line-height:1.2;}
+#cents-bar{
+  position:fixed;top:62px;left:50%;transform:translateX(-50%);
+  width:120px;height:4px;background:rgba(255,255,255,0.1);
+  border-radius:2px;z-index:10;pointer-events:none;overflow:visible;
+}
+#cents-needle{
+  position:absolute;top:-3px;left:50%;transform:translateX(-50%);
+  width:10px;height:10px;border-radius:50%;background:#ffee44;
+  box-shadow:0 0 8px #ffaa00;transition:left 0.08s;
+}
+#cents-line{position:absolute;top:0;left:50%;width:1px;height:4px;background:rgba(255,255,255,0.3);}
+
+/* Pitch wave */
+/* wave canvas removed — using in-game visualizer */
+
+/* Stop button */
+#stop-btn{position:fixed;top:14px;right:14px;z-index:15;padding:8px 18px;border-radius:50px;border:none;background:rgba(255,255,255,0.12);backdrop-filter:blur(10px);color:#fff;font-family:'Fredoka One',cursive;font-size:0.85rem;cursor:pointer;display:none;border:1px solid rgba(255,255,255,0.15);transition:all 0.2s;}
+#stop-btn:hover{background:rgba(255,80,140,0.4);}
+#home-btn{position:fixed;top:14px;left:14px;z-index:15;padding:8px 18px;border-radius:50px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.12);backdrop-filter:blur(10px);color:#fff;font-family:'Fredoka One',cursive;font-size:0.85rem;cursor:pointer;text-decoration:none;display:inline-block;transition:all 0.2s;}
+#home-btn:hover{background:rgba(100,180,255,0.35);}
+
+/* Mic bar */
+/* mic bar removed */
+
+/* Award banner */
+#award-banner{
+  position:fixed;top:50%;left:50%;
+  transform:translate(-50%,-50%) scale(0.6) translateY(30px);
+  z-index:100;text-align:center;pointer-events:none;
+  transition:transform 0.5s cubic-bezier(0.34,1.56,0.64,1),opacity 0.5s;
+  opacity:0;width:88%;max-width:340px;
+}
+#award-banner.show{transform:translate(-50%,-50%) scale(1) translateY(0);opacity:1;}
+#award-banner.hide{transform:translate(-50%,-50%) scale(0.8) translateY(-20px);opacity:0;}
+.award-inner{
+  background:linear-gradient(160deg,rgba(20,4,50,0.82),rgba(10,18,70,0.82));
+  border:1px solid rgba(255,210,140,0.25);
+  border-radius:32px;padding:32px 36px 28px;
+  box-shadow:0 8px 60px rgba(0,0,0,0.5),0 0 80px rgba(255,180,80,0.12),inset 0 1px 0 rgba(255,255,255,0.08);
+  backdrop-filter:blur(28px);
+  -webkit-backdrop-filter:blur(28px);
+}
+.award-shimmer{
+  position:absolute;inset:0;border-radius:32px;overflow:hidden;pointer-events:none;
+  background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,0.04) 50%,transparent 60%);
+  animation:shimmerSlide 3s linear infinite;
+}
+@keyframes shimmerSlide{0%{transform:translateX(-100%)}100%{transform:translateX(200%)}}
+.award-emoji{font-size:4rem;display:block;margin-bottom:12px;
+  animation:awardFloat 2s ease-in-out infinite alternate;
+  filter:drop-shadow(0 0 20px rgba(255,220,100,0.6));
+}
+@keyframes awardFloat{from{transform:translateY(0) rotate(-3deg) scale(1);}to{transform:translateY(-10px) rotate(3deg) scale(1.1);}}
+.award-label{font-family:'Fredoka One',cursive;font-size:0.6rem;letter-spacing:5px;
+  color:rgba(255,210,150,0.5);text-transform:uppercase;margin-bottom:8px;display:block;}
+.award-name{font-family:'Fredoka One',cursive;font-size:1.9rem;line-height:1.1;
+  margin-bottom:10px;display:block;
+  background:linear-gradient(135deg,#ffe088,#ffaacc,#aaddff);
+  background-size:200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  animation:shimmer 3s linear infinite;
+}
+@keyframes shimmer{0%{background-position:0%}100%{background-position:200%}}
+.award-desc{font-size:0.92rem;color:rgba(255,225,245,0.72);font-weight:700;line-height:1.6;
+  display:block;margin-bottom:14px;}
+.award-stars{font-size:1rem;letter-spacing:6px;opacity:0.5;}
+
+/* Level up */
+#levelup-banner{
+  position:fixed;top:30%;left:50%;transform:translateX(-50%) translateY(-20px);
+  z-index:99;text-align:center;pointer-events:none;opacity:0;transition:all 0.4s;
+}
+#levelup-banner.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.levelup-inner{
+  background:linear-gradient(135deg,rgba(255,80,140,0.15),rgba(180,100,255,0.15));
+  border:1px solid rgba(255,150,200,0.3);
+  border-radius:20px;padding:14px 32px;backdrop-filter:blur(12px);
+}
+.levelup-text{font-family:'Fredoka One',cursive;font-size:1.6rem;background:linear-gradient(90deg,#ff88cc,#ffcc44,#88ffcc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+
+/* Karaoke text */
+#karaoke-text{
+  position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+  font-family:'Fredoka One',cursive;font-size:1.1rem;
+  color:rgba(255,220,240,0.7);text-align:center;z-index:10;
+  pointer-events:none;white-space:nowrap;
+  text-shadow:0 0 20px rgba(255,150,200,0.5);
+  transition:opacity 0.5s;
+}
+
+/* Overlays */
+.overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;z-index:20;padding:24px 20px 32px;background:linear-gradient(160deg,#1e0640 0%,#0d1a55 50%,#091830 100%);}
+.overlay h1{font-family:'Fredoka One',cursive;font-size:clamp(2.5rem,10vw,4.5rem);text-align:center;line-height:1.1;background:linear-gradient(135deg,#ff88cc,#ffee44,#88ffcc,#aabbff);background-size:200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:shimmer 3s linear infinite;filter:drop-shadow(0 0 20px #ff88cc66);}
+@keyframes shimmer{0%{background-position:0%}100%{background-position:200%}}
+.emoji-row{font-size:2rem;letter-spacing:8px;animation:bob 1.3s ease-in-out infinite alternate;margin:6px 0;}
+@keyframes bob{from{transform:translateY(0)}to{transform:translateY(-10px)}}
+.tagline{color:#ffffffaa;font-size:0.9rem;text-align:center;max-width:320px;line-height:1.9;}
+.btn{padding:15px 44px;border-radius:50px;border:none;background:linear-gradient(135deg,#ff55aa,#ff9944);color:#fff;font-family:'Fredoka One',cursive;font-size:1.1rem;cursor:pointer;box-shadow:0 4px 30px #ff55aa66;transition:transform 0.15s,box-shadow 0.15s;text-transform:uppercase;}
+.btn:hover{transform:scale(1.06);box-shadow:0 6px 40px #ff55aaaa;}
+.btn:active{transform:scale(0.96);}
+.btn-ghost{padding:11px 28px;border-radius:50px;border:2px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.06);color:#ffffffcc;font-family:'Fredoka One',cursive;font-size:0.95rem;cursor:pointer;transition:all 0.2s;}
+.btn-ghost:hover{background:rgba(255,255,255,0.14);}
+#mic-error{display:none;max-width:280px;text-align:center;font-size:0.78rem;color:#ffaa88;line-height:1.8;padding:12px 18px;border:1px solid #ffaa8855;border-radius:12px;background:#ffaa8815;}
+
+/* Badges panel */
+#badges-panel{width:100%;max-width:380px;}
+#badges-panel h3{font-family:'Fredoka One',cursive;font-size:1.1rem;color:#ffee44;text-align:center;margin-bottom:10px;}
+.badges-grid{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}
+.badge-chip{
+  display:flex;align-items:center;gap:6px;
+  padding:7px 14px;border-radius:20px;
+  font-size:0.8rem;font-weight:800;
+  background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);
+  color:rgba(255,255,255,0.4);
+  transition:all 0.3s;
+}
+.badge-chip.earned{background:linear-gradient(135deg,rgba(255,180,0,0.2),rgba(255,100,180,0.2));border-color:rgba(255,200,100,0.4);color:#fff;box-shadow:0 0 16px rgba(255,180,0,0.2);}
+
+/* Leaderboard */
+#lb-section{width:100%;max-width:380px;}
+#lb-section h2{font-family:'Fredoka One',cursive;font-size:1.2rem;text-align:center;color:#ffee44;margin-bottom:10px;}
+.lb-row{display:grid;grid-template-columns:40px 1fr auto;align-items:center;padding:10px 14px;border-radius:14px;margin-bottom:7px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.07);font-size:0.88rem;color:#ffffffdd;}
+.lb-row.rank-1{background:linear-gradient(135deg,#ffaa0025,#ffee4425);border-color:#ffee4444;box-shadow:0 0 20px #ffee4415;}
+.lb-row.rank-2{background:linear-gradient(135deg,#aaaaff18,#ccccff18);border-color:#aaaaff33;}
+.lb-row.rank-3{background:linear-gradient(135deg,#ff885518,#ffaa6618);border-color:#ff885533;}
+.lb-row.highlight{border:2px solid #ffee44!important;animation:hlPulse 1s ease-in-out 3;}
+@keyframes hlPulse{0%,100%{box-shadow:0 0 20px #ffee4433}50%{box-shadow:0 0 40px #ffee4499}}
+.lb-medal{font-size:1.2rem;text-align:center;}
+.lb-name{font-weight:800;padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lb-date{font-size:0.6rem;color:#ffffff44;display:block;font-weight:400;}
+.lb-pts{font-weight:900;color:#ffee44;white-space:nowrap;}
+.lb-empty{color:#ffffff44;text-align:center;font-size:0.85rem;padding:14px;font-style:italic;}
+.divider{width:100%;max-width:380px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.12),transparent);margin:4px 0;}
+#name-input{padding:12px 20px;border-radius:50px;border:2px solid rgba(255,136,204,0.4);background:rgba(255,255,255,0.07);color:#fff;font-family:'Fredoka One',cursive;font-size:1rem;text-align:center;width:100%;max-width:300px;outline:none;transition:border-color 0.2s;}
+#name-input:focus{border-color:rgba(255,136,204,0.8);}
+#name-input::placeholder{color:#ffffff44;}
+.end-score-wrap{display:flex;flex-direction:column;align-items:center;background:rgba(255,255,255,0.05);border-radius:20px;padding:18px 32px;border:1px solid rgba(255,255,255,0.1);width:100%;max-width:340px;}
+.end-label{color:#ffffff66;font-size:0.75rem;letter-spacing:3px;text-transform:uppercase;}
+.end-score{font-family:'Fredoka One',cursive;font-size:4rem;line-height:1;background:linear-gradient(135deg,#ffee44,#ff88cc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 20px #ffaa00aa);}
+.end-note{font-size:0.85rem;color:#88ffcc;font-weight:700;margin-top:2px;}
+#card-wrap{display:none;flex-direction:column;align-items:center;gap:10px;width:100%;max-width:380px;}
+#score-card{border-radius:20px;box-shadow:0 0 50px #ff88cc55;max-width:100%;}
+#share-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div id="score-display">✨ 0</div>
+  <div id="note-display">🎤 Sing!</div>
+  <div id="combo-display"></div>
+</div>
+
+<div id="cents-bar" style="display:none">
+  <div id="cents-line"></div>
+  <div id="cents-needle"></div>
+</div>
+
+<div id="sing-meter"><div id="sing-fill" style="height:0%"></div></div>
+<div id="sing-label">PITCH</div>
+
+<canvas id="game"></canvas>
+
+<a id="home-btn" href="index.html">🏠 Home</a>
+<button id="stop-btn">⏹ Finish</button>
+
+
+<div id="karaoke-text"></div>
+
+<!-- Award banner -->
+<div id="award-banner">
+  <div class="award-inner" style="position:relative;overflow:hidden;">
+    <div class="award-shimmer"></div>
+    <span class="award-emoji" id="award-emoji">🌟</span>
+    <span class="award-label">✨ Award Unlocked ✨</span>
+    <span class="award-name" id="award-name">Songbird</span>
+    <span class="award-desc" id="award-desc">You're amazing!</span>
+    <div class="award-stars" id="award-stars">⭐ ⭐ ⭐</div>
+  </div>
+</div>
+
+<!-- Level up banner -->
+<div id="levelup-banner">
+  <div class="levelup-inner">
+    <div class="levelup-text" id="levelup-text">🎵 Level Up! 🎵</div>
+  </div>
+</div>
+
+<!-- START -->
+<div class="overlay" id="start-overlay">
+  <div style="height:14px"></div>
+  <h1>Voice Joy</h1>
+  <div class="emoji-row">🎤 🌈 💖 ✨</div>
+  <p class="tagline">
+    <strong style="color:#ffee44">Sing high → fly up 🚀</strong><br>
+    <strong style="color:#ff88cc">Sing low → glide down 🌊</strong><br>
+    Collect stars & hearts — earn amazing singing awards! 🏆<br>
+    <span style="color:#88ffcc;font-size:0.82rem;">The better you sing, the more magical it gets!</span>
+  </p>
+  <div id="mic-error"></div>
+  <button class="btn" id="start-btn">🎤 Start Singing!</button>
+  <div class="divider" style="margin-top:18px"></div>
+  <div id="lb-section"><h2>🏆 Top Singers</h2><div id="lb-list"></div></div>
+</div>
+
+<!-- END -->
+<div class="overlay" id="end-screen" style="display:none">
+  <div style="height:10px"></div>
+  <h1>Wonderful! 🎉</h1>
+  <div class="emoji-row" style="font-size:1.5rem">🎊 🌟 🎊</div>
+
+  <div class="end-score-wrap">
+    <div class="end-label">Your Score</div>
+    <div class="end-score" id="final-score-num">0</div>
+    <div class="end-note" id="high-score-note"></div>
+  </div>
+
+  <!-- Earned badges -->
+  <div id="badges-panel">
+    <h3>🏅 Your Awards</h3>
+    <div class="badges-grid" id="earned-badges"></div>
+  </div>
+
+  <div id="card-wrap">
+    <canvas id="score-card" width="380" height="230"></canvas>
+    <div id="share-row">
+      <button class="btn-ghost" id="download-btn">⬇ Save Card</button>
+      <button class="btn-ghost" id="copy-btn">📋 Copy Score</button>
+    </div>
+  </div>
+
+  <input id="name-input" type="text" maxlength="18" placeholder="✏️ Your name…" autocomplete="off"/>
+  <button class="btn" id="submit-btn">Submit to Leaderboard 🏆</button>
+  <div class="divider"></div>
+  <div id="lb-section" style="max-width:380px;width:100%"><h2>🏆 Top Singers</h2><div id="lb-list-end"></div></div>
+  <button class="btn-ghost" id="play-again-btn" style="margin-top:12px">Sing Again 🎤</button>
+  <div style="height:20px"></div>
+</div>
+
+<script>
+// ══ Canvas ══════════════════════════════════════════════
+const canvas=document.getElementById('game');
+const ctx=canvas.getContext('2d');
+// waveCanvas removed
+function resize(){
+  canvas.width=Math.min(window.innerWidth,520);
+  canvas.height=Math.min(window.innerHeight,820);
+}
+resize();window.addEventListener('resize',resize);
+
+// ══ Audio ════════════════════════════════════════════════
+let audioCtx,analyser,dataArray,bufferLength,audioReady=false;
+async function initAudio(){
+  // iOS Safari: AudioContext MUST be created synchronously inside user gesture
+  if(!audioCtx){
+    audioCtx = new(window.AudioContext||window.webkitAudioContext)();
+  }
+  // Resume immediately while still inside the gesture
+  if(audioCtx.state==='suspended'){
+    await audioCtx.resume();
+  }
+
+  // Now request mic (with timeout so it never hangs forever on iOS)
+  let stream;
+  try{
+    const micPromise = navigator.mediaDevices.getUserMedia({audio:true,video:false});
+    const timeout = new Promise((_,reject)=>setTimeout(()=>reject(new Error('Mic request timed out. Try again!')),8000));
+    stream = await Promise.race([micPromise, timeout]);
+  }catch(e){
+    throw new Error(
+      e.name==='NotAllowedError' ? 'Mic denied. Go to Settings → Safari → Mic and allow, then retry.' :
+      e.name==='NotFoundError'   ? 'No microphone found on this device.' :
+      e.message || 'Could not access microphone.'
+    );
+  }
+
+  const src=audioCtx.createMediaStreamSource(stream);
+  analyser=audioCtx.createAnalyser();analyser.fftSize=2048;
+  bufferLength=analyser.fftSize;dataArray=new Float32Array(bufferLength);
+  src.connect(analyser);audioReady=true;
+}
+
+function detectPitch(){
+  if(!audioReady)return{pitch:0,volume:0};
+  analyser.getFloatTimeDomainData(dataArray);
+  let rms=0;for(let i=0;i<bufferLength;i++)rms+=dataArray[i]*dataArray[i];
+  rms=Math.sqrt(rms/bufferLength);
+  if(rms<0.007)return{pitch:0,volume:rms};
+  const S=bufferLength;let r=new Float32Array(S);
+  for(let lag=0;lag<S;lag++){let s=0;for(let i=0;i<S-lag;i++)s+=dataArray[i]*dataArray[i+lag];r[lag]=s;}
+  let d=0;while(d<S-1&&r[d]>r[d+1])d++;
+  let mx=-1,mp=-1;for(let i=d;i<S;i++)if(r[i]>mx){mx=r[i];mp=i;}
+  if(mp<=0)return{pitch:0,volume:rms};
+  const p=audioCtx.sampleRate/mp;
+  return{pitch:(p>60&&p<1200)?p:0,volume:rms};
+}
+
+// 432Hz natural tuning — A4=432Hz
+const A4_432=432;
+const C4_432=A4_432*Math.pow(2,-9/12); // ~256.87Hz
+const NOTE_NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const NOTE_COLORS={'C':'#ff4466','C#':'#ff6644','D':'#ff9944','D#':'#ffcc00','E':'#aaff44','F':'#44ff88','F#':'#44ffcc','G':'#44aaff','G#':'#4466ff','A':'#8844ff','A#':'#cc44ff','B':'#ff44cc'};
+function pitchToNote(hz){
+  if(!hz||hz<50)return{name:'',color:'#ffffff',cents:0};
+  const semis=12*Math.log2(hz/C4_432);
+  const n=Math.round(semis);
+  const cents=Math.round((semis-n)*100);
+  const noteName=NOTE_NAMES[((n%12)+12)%12];
+  const oct=4+Math.floor(n/12);
+  return{name:noteName+oct,color:NOTE_COLORS[noteName]||'#ffffff',cents};
+}
+// Median pitch smoother for stability
+let pitchHistory=[];
+function getSmoothedPitch(raw){
+  if(raw>0)pitchHistory.push(raw);
+  if(pitchHistory.length>6)pitchHistory.shift();
+  if(pitchHistory.length<2)return raw;
+  const sorted=[...pitchHistory].sort((a,b)=>a-b);
+  return sorted[Math.floor(sorted.length/2)];
+}
+
+// ══ Awards ═══════════════════════════════════════════════
+const AWARDS=[
+  // ── First moments ──────────────────────────────────────
+  {
+    id:'welcome',emoji:'🌱',stars:'⭐',
+    name:'Your Voice is a Gift',
+    desc:'You opened your mouth and let something beautiful out. That takes courage. We love you for it.',
+    check:(g)=>g.totalSingFrames>8
+  },
+  // ── Holding steady ──────────────────────────────────────
+  {
+    id:'steady',emoji:'🕊️',stars:'⭐⭐',
+    name:'Still & Steady',
+    desc:'You held a note with such calm and grace. There is real peace in your voice.',
+    check:(g)=>g.sustainStreak>80
+  },
+  // ── Flowing melody ──────────────────────────────────────
+  {
+    id:'flowing',emoji:'🌊',stars:'⭐⭐',
+    name:'Like Water',
+    desc:'Your voice flowed so smoothly between notes — effortless, natural, and truly lovely.',
+    check:(g)=>g.melodyMoves>6
+  },
+  // ── Reaching high ──────────────────────────────────────
+  {
+    id:'soaring',emoji:'🦅',stars:'⭐⭐',
+    name:'Soaring High',
+    desc:'You reached up into the higher notes with such beauty. Your voice has real wings.',
+    check:(g)=>g.highestPitch>240
+  },
+  // ── Going deep ──────────────────────────────────────────
+  {
+    id:'grounded',emoji:'🌍',stars:'⭐⭐',
+    name:'Deep & Grounded',
+    desc:'You rumbled down into those gorgeous low notes. Rich, warm and wonderfully earthy.',
+    check:(g)=>g.lowestPitch>0&&g.lowestPitch<110
+  },
+  // ── Full range ──────────────────────────────────────────
+  {
+    id:'rainbow_voice',emoji:'🌈',stars:'⭐⭐⭐',
+    name:'Rainbow Voice',
+    desc:'From low E all the way to high E — you used your whole beautiful range. Truly exceptional.',
+    check:(g)=>g.pitchRange>160
+  },
+  // ── Sustained perfection ────────────────────────────────
+  {
+    id:'pure_tone',emoji:'🔮',stars:'⭐⭐⭐',
+    name:'Pure Tone',
+    desc:'Crystal clear. Unwavering. You held that note with stunning precision and purity.',
+    check:(g)=>g.perfectStreak>90
+  },
+  // ── Endurance ───────────────────────────────────────────
+  {
+    id:'devoted',emoji:'💖',stars:'⭐⭐',
+    name:'Devoted Singer',
+    desc:'You kept singing and singing without stopping. That devotion to the music is just beautiful.',
+    check:(g)=>g.totalSingFrames>400
+  },
+  // ── Collection milestones ───────────────────────────────
+  {
+    id:'collector10',emoji:'✨',stars:'⭐⭐',
+    name:'Gathering Light',
+    desc:'10 treasures collected while your voice guided the way. You are truly shining.',
+    check:(g)=>g.score>=10
+  },
+  {
+    id:'collector30',emoji:'💫',stars:'⭐⭐⭐',
+    name:'Star Weaver',
+    desc:'30 stars gathered in your arms. Your singing has painted the whole sky tonight.',
+    check:(g)=>g.score>=30
+  },
+  // ── Combos ──────────────────────────────────────────────
+  {
+    id:'in_the_zone',emoji:'🎯',stars:'⭐⭐⭐',
+    name:'In the Zone',
+    desc:'5 in a row! Your voice and your star moved as one. Pure magic happened just now.',
+    check:(g)=>g.bestCombo>=5
+  },
+  // ── Transcendent ────────────────────────────────────────
+  {
+    id:'transcendent',emoji:'👑',stars:'⭐⭐⭐',
+    name:'Voice of Gold',
+    desc:'Something truly extraordinary just happened. Your voice is a crown. Wear it always.',
+    check:(g)=>g.score>=50
+  },
+];
+
+// Level thresholds
+const LEVELS=[
+  {score:0,  name:'Hummer 🎶',          color:'#aabbff'},
+  {score:5,  name:'Crooner 🎤',          color:'#ff88cc'},
+  {score:15, name:'Songbird 🐦',         color:'#ffcc44'},
+  {score:30, name:'Star Singer ⭐',       color:'#ff88ff'},
+  {score:50, name:'Vocal Wizard 🧙',     color:'#88ffcc'},
+  {score:75, name:'Legendary Voice 👑',  color:'#ff4488'},
+];
+
+// Karaoke encouragements
+const KARAOKE_LINES=[
+  '🎵 You sound amazing!','✨ What a beautiful voice!','🌟 Incredible singing!',
+  '💖 Your voice is magical!','🎤 Keep singing, superstar!','🌈 So wonderfully melodic!',
+  '👑 You\'re sensational!','🎊 Exceptional voice!','🌸 Lovely and gorgeous!',
+  '🦋 Your pitch is perfect!','⭐ Outstanding performance!','🎵 Simply beautiful!',
+];
+
+// ══ Storage / Leaderboard ════════════════════════════════
+function getScores(){try{return JSON.parse(localStorage.getItem('voicejoy_v3')||'[]');}catch{return[];}}
+function saveScore(name,pts,badges){
+  const scores=getScores();
+  scores.push({name,pts,badges:badges.length,date:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'})});
+  scores.sort((a,b)=>b.pts-a.pts);scores.splice(10);
+  localStorage.setItem('voicejoy_v3',JSON.stringify(scores));return scores;
+}
+function renderLeaderboard(el,highlight=-1){
+  const scores=getScores();
+  if(!scores.length){el.innerHTML='<div class="lb-empty">No singers yet — be first! 🌟</div>';return;}
+  const medals=['🥇','🥈','🥉'];
+  const rc=['rank-1','rank-2','rank-3'];
+  el.innerHTML=scores.slice(0,10).map((s,i)=>`
+    <div class="lb-row ${rc[i]||''} ${i===highlight?'highlight':''}">
+      <span class="lb-medal">${medals[i]||'#'+(i+1)}</span>
+      <span class="lb-name">${s.name}<span class="lb-date">${s.date} · ${s.badges||0} awards</span></span>
+      <span class="lb-pts">✨ ${s.pts}</span>
+    </div>`).join('');
+}
+
+// Score card
+function drawScoreCard(name,pts,badgeList){
+  const c=document.getElementById('score-card');
+  const x=c.getContext('2d');
+  const W=c.width,H=c.height;
+  const bg=x.createLinearGradient(0,0,W,H);
+  bg.addColorStop(0,'#1e0640');bg.addColorStop(0.5,'#0d1a55');bg.addColorStop(1,'#091830');
+  x.fillStyle=bg;x.fillRect(0,0,W,H);
+  const ag=x.createRadialGradient(W*0.3,H*0.4,0,W*0.3,H*0.4,W*0.6);
+  ag.addColorStop(0,'rgba(255,100,180,0.15)');ag.addColorStop(1,'transparent');
+  x.fillStyle=ag;x.fillRect(0,0,W,H);
+  const rb=['#ff4466','#ff8844','#ffee44','#44ee88','#44aaff','#aa66ff'];
+  rb.forEach((col,i)=>{x.fillStyle=col;x.fillRect(i*(W/6),0,W/6,7);});
+  x.font='48px serif';x.textAlign='center';x.textBaseline='middle';
+  x.shadowColor='#ffff88';x.shadowBlur=20;x.fillText('🎤',W/2,58);x.shadowBlur=0;
+  x.font='bold 13px Nunito,sans-serif';x.fillStyle='rgba(255,255,255,0.35)';x.fillText('VOICE JOY · AWESOME LOVE GAMES',W/2,94);
+  x.font='bold 22px Nunito,sans-serif';x.fillStyle='#fff';x.shadowColor='#ff88cc';x.shadowBlur=10;x.fillText(name||'Anonymous',W/2,124);x.shadowBlur=0;
+  const sg=x.createLinearGradient(W/2-80,0,W/2+80,0);
+  sg.addColorStop(0,'#ff88cc');sg.addColorStop(0.5,'#ffee44');sg.addColorStop(1,'#88ffcc');
+  x.font='bold 52px Nunito,sans-serif';x.fillStyle=sg;x.shadowColor='#ffaa00';x.shadowBlur=18;
+  x.fillText('✨ '+pts,W/2,178);x.shadowBlur=0;
+  if(badgeList.length){
+    const emojis=badgeList.slice(0,6).map(b=>b.emoji).join(' ');
+    x.font='18px serif';x.fillText(emojis,W/2,208);
+  }
+  rb.forEach((col,i)=>{x.fillStyle=col;x.fillRect(i*(W/6),H-7,W/6,7);});
+  document.getElementById('card-wrap').style.display='flex';
+}
+
+// ══ Game State ════════════════════════════════════════════
+let state='idle',score=0,frameCount=0;
+let combo=0,comboTimer=0,smoothPitch=0,pitchActive=false;
+let hueShift=0,flashColor=null,flashAlpha=0;
+const FLASH=['#ff4488','#ffaa00','#44ffaa','#4488ff','#aa44ff','#ff8844'];
+const ITEMS=['🌈','💖','😊','⭐','🎀','🌸','🍭','✨','🦋','🎵','🌟','🎊','🍀','🎈','🪄','🌙','💎','🎆','🎤','🎼'];
+
+// Singing stats for awards
+const gStats={
+  score:0,totalSingFrames:0,sustainStreak:0,maxSustainStreak:0,
+  melodyMoves:0,perfectStreak:0,bestCombo:0,
+  pitchRange:0,highestPitch:0,lowestPitch:9999,
+  prevPitch:0,earnedAwards:[],
+};
+let currentLevel=0;
+let karaokeTimer=0,karaokeIdx=0;
+let waveHistory=[];
+
+const bird={x:0,y:0,vy:0,trail:[],glow:0,wobble:0};
+let collectibles=[],particles=[],floatingTexts=[],bgStars=[],shootingStars=[],pitchRibbon=[];
+
+function initBgStars(){
+  bgStars=[];
+  for(let i=0;i<80;i++)bgStars.push({
+    x:Math.random()*canvas.width,y:Math.random()*canvas.height,
+    r:Math.random()*2+0.2,a:Math.random()*0.8+0.2,
+    speed:Math.random()*0.5+0.1,
+    twinkle:Math.random()*Math.PI*2,twinkleSpeed:0.02+Math.random()*0.05,
+  });
+}
+
+function spawnCollectible(){
+  const m=60;
+  collectibles.push({
+    x:canvas.width+30,y:m+Math.random()*(canvas.height-m*2),
+    emoji:ITEMS[Math.floor(Math.random()*ITEMS.length)],
+    size:28+Math.random()*16,
+    wobble:Math.random()*Math.PI*2,wobbleSpeed:0.04+Math.random()*0.04,
+    spin:0,spinSpeed:(Math.random()-0.5)*0.05,
+    speed:1.1+Math.random()*0.6,
+    collected:false,pulsePhase:Math.random()*Math.PI*2,hue:Math.random()*360,
+  });
+}
+
+function spawnParticles(x,y){
+  for(let i=0;i<18;i++){
+    const a=(Math.PI*2/18)*i+Math.random()*0.3;const sp=2+Math.random()*4;
+    particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,decay:0.02+Math.random()*0.02,size:5+Math.random()*10,color:FLASH[Math.floor(Math.random()*FLASH.length)],shape:Math.random()<0.4?'star':'circle'});
+  }
+}
+function spawnFloat(x,y,txt){floatingTexts.push({x,y,text:txt,life:1.2,vy:-2.2,vx:(Math.random()-0.5)*1.2});}
+
+function resetGame(){
+  score=0;frameCount=0;combo=0;comboTimer=0;
+  collectibles=[];particles=[];floatingTexts=[];flashColor=null;flashAlpha=0;shootingStars=[];pitchHistory=[];pitchRibbon=[];
+  Object.assign(gStats,{score:0,totalSingFrames:0,sustainStreak:0,maxSustainStreak:0,melodyMoves:0,perfectStreak:0,bestCombo:0,pitchRange:0,highestPitch:0,lowestPitch:9999,prevPitch:0,earnedAwards:[]});
+  currentLevel=0;karaokeTimer=0;
+  bird.x=canvas.width*0.22;bird.y=canvas.height*0.5;bird.vy=0;bird.trail=[];bird.glow=0;
+  document.getElementById('score-display').textContent='✨ 0';
+  document.getElementById('combo-display').style.opacity='0';
+  document.getElementById('note-display').textContent='🎤 Sing!';
+  initBgStars();
+  for(let i=0;i<5;i++){spawnCollectible();collectibles[i].x=canvas.width*0.4+i*155;}
+}
+
+// E2=82.41Hz (bottom) → E4=329.63Hz (top) — natural singing range
+const PITCH_LOW=82.41;   // low E2 — bird sits at BOTTOM
+const PITCH_HIGH=329.63; // E4 above middle C — bird flies to TOP
+
+function pitchToY(p){
+  // LOW pitch = bottom of screen, HIGH pitch = top of screen
+  const t=Math.max(0,Math.min(1,(p-PITCH_LOW)/(PITCH_HIGH-PITCH_LOW)));
+  const margin=40;
+  return canvas.height - margin - t*(canvas.height - margin*2);
+}
+function pitchToTargetRibbon(p){ return pitchToY(p); }
+
+// ══ Award system ══════════════════════════════════════════
+function checkAwards(){
+  gStats.score=score; // sync score into stats
+  for(const award of AWARDS){
+    if(!gStats.earnedAwards.find(a=>a.id===award.id)&&award.check(gStats)){
+      gStats.earnedAwards.push(award);
+      showAward(award);
+      return; // show one at a time
+    }
+  }
+}
+
+let awardQueue=[];
+let awardShowing=false;
+function showAward(award){
+  awardQueue.push(award);
+  if(!awardShowing)processAwardQueue();
+}
+function processAwardQueue(){
+  if(!awardQueue.length){awardShowing=false;return;}
+  awardShowing=true;
+  const award=awardQueue.shift();
+  const banner=document.getElementById('award-banner');
+  document.getElementById('award-emoji').textContent=award.emoji;
+  document.getElementById('award-name').textContent=award.name;
+  document.getElementById('award-desc').textContent=award.desc;
+  document.getElementById('award-stars').textContent=award.stars||'⭐';
+  // Tint the banner border to match award colour slightly
+  banner.querySelector('.award-inner').style.borderColor=
+    award.stars&&award.stars.length>4?'rgba(255,220,80,0.45)':'rgba(255,180,220,0.25)';
+  banner.classList.remove('hide');banner.classList.add('show');
+  // Big particle burst
+  for(let i=0;i<30;i++){
+    const a=Math.random()*Math.PI*2,sp=3+Math.random()*6;
+    particles.push({x:canvas.width/2,y:canvas.height/2,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,decay:0.015+Math.random()*0.015,size:6+Math.random()*14,color:FLASH[Math.floor(Math.random()*FLASH.length)],shape:Math.random()<0.5?'star':'circle'});
+  }
+  setTimeout(()=>{
+    banner.classList.remove('show');banner.classList.add('hide');
+    setTimeout(()=>{banner.classList.remove('hide');awardShowing=false;processAwardQueue();},400);
+  },4200);
+}
+
+function checkLevelUp(){
+  for(let i=LEVELS.length-1;i>=0;i--){
+    if(score>=LEVELS[i].score&&currentLevel<i){
+      currentLevel=i;
+      const lv=LEVELS[i];
+      const el=document.getElementById('levelup-banner');
+      document.getElementById('levelup-text').textContent=`✨ ${lv.name} ✨`;
+      document.getElementById('levelup-text').style.background=`linear-gradient(90deg,${lv.color},#fff,${lv.color})`;
+      document.getElementById('levelup-text').style.webkitBackgroundClip='text';
+      document.getElementById('levelup-text').style.webkitTextFillColor='transparent';
+      el.classList.add('show');
+      setTimeout(()=>el.classList.remove('show'),2200);
+    }
+  }
+}
+
+// ══ Draw ══════════════════════════════════════════════════
+function drawBg(){
+  hueShift=(hueShift+0.1)%360;
+  const bg=ctx.createLinearGradient(0,0,canvas.width,canvas.height);
+  bg.addColorStop(0,`hsl(${(hueShift+260)%360},55%,9%)`);
+  bg.addColorStop(0.5,`hsl(${(hueShift+220)%360},50%,12%)`);
+  bg.addColorStop(1,`hsl(${(hueShift+180)%360},45%,8%)`);
+  ctx.fillStyle=bg;ctx.fillRect(0,0,canvas.width,canvas.height);
+  // Aurora
+  for(let i=0;i<4;i++){
+    const y=canvas.height*(0.15+i*0.25)+Math.sin(Date.now()/2200+i*1.3)*35;
+    const ag=ctx.createLinearGradient(0,y-50,0,y+50);
+    ag.addColorStop(0,'rgba(0,0,0,0)');
+    ag.addColorStop(0.5,`hsla(${(hueShift+i*70)%360},90%,65%,0.065)`);
+    ag.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=ag;ctx.fillRect(0,y-50,canvas.width,100);
+  }
+  // Stars
+  for(const s of bgStars){
+    s.twinkle+=s.twinkleSpeed;
+    const a=s.a*(0.5+0.5*Math.sin(s.twinkle));
+    ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,255,${a})`;ctx.fill();
+    s.x-=s.speed;if(s.x<0){s.x=canvas.width;s.y=Math.random()*canvas.height;}
+  }
+  // Shooting stars
+  if(Math.random()<0.004)shootingStars.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height*0.4,vx:3+Math.random()*4,vy:1.5+Math.random()*2,life:1,color:`hsl(${Math.random()*360},100%,85%)`});
+  for(const s of shootingStars){
+    ctx.save();ctx.globalAlpha=s.life;
+    const g=ctx.createLinearGradient(s.x,s.y,s.x-s.vx*16,s.y-s.vy*16);
+    g.addColorStop(0,s.color);g.addColorStop(1,'transparent');
+    ctx.strokeStyle=g;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.x-s.vx*16,s.y-s.vy*16);ctx.stroke();ctx.restore();
+    s.x+=s.vx;s.y+=s.vy;s.life-=0.02;
+  }
+  shootingStars=shootingStars.filter(s=>s.life>0);
+}
+
+// wave function removed — pitch ribbon drawn in-game
+
+// Pitch ribbon — shows singing pitch history as a flowing colored ribbon
+function drawPitchRibbon(){
+  if(pitchRibbon.length<2)return;
+  for(let i=1;i<pitchRibbon.length;i++){
+    const p=pitchRibbon[i],pp=pitchRibbon[i-1];
+    const frac=i/pitchRibbon.length;
+    if(!p.active)continue;
+    ctx.beginPath();ctx.moveTo(pp.rx,pp.ry);ctx.lineTo(p.rx,p.ry);
+    ctx.strokeStyle=p.color||'#ffffff';
+    ctx.globalAlpha=frac*0.55;
+    ctx.lineWidth=4*frac;ctx.lineCap='round';ctx.stroke();ctx.globalAlpha=1;
+    // glow dot at tip
+    if(i===pitchRibbon.length-1&&p.active){
+      const gr=ctx.createRadialGradient(p.rx,p.ry,0,p.rx,p.ry,12);
+      gr.addColorStop(0,p.color||'#ffffff');gr.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.beginPath();ctx.arc(p.rx,p.ry,12,0,Math.PI*2);ctx.fillStyle=gr;ctx.fill();
+    }
+  }
+}
+
+function drawRainbowTrail(){
+  const rb=['#ff4466','#ff8844','#ffee44','#44ee88','#44aaff','#aa66ff'];
+  for(let i=1;i<bird.trail.length;i++){
+    const t=bird.trail[i],tp=bird.trail[i-1];
+    const frac=i/bird.trail.length;
+    const col=rb[Math.floor(frac*rb.length)];
+    const r=parseInt(col.slice(1,3),16),g=parseInt(col.slice(3,5),16),b=parseInt(col.slice(5,7),16);
+    ctx.beginPath();ctx.moveTo(tp.x,tp.y);ctx.lineTo(t.x,t.y);
+    ctx.strokeStyle=`rgba(${r},${g},${b},${frac*0.75})`;
+    ctx.lineWidth=8*frac;ctx.lineCap='round';ctx.stroke();
+  }
+}
+
+function drawBird(){
+  drawRainbowTrail();
+  const{x,y,vy,glow}=bird;
+  const pulseR=45+Math.sin(bird.wobble*1.5)*6+glow*18;
+  const gr=ctx.createRadialGradient(x,y,0,x,y,pulseR);
+  gr.addColorStop(0,`rgba(255,200,255,${0.2+glow*0.28})`);
+  gr.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.beginPath();ctx.arc(x,y,pulseR,0,Math.PI*2);ctx.fillStyle=gr;ctx.fill();
+  ctx.save();ctx.translate(x,y);
+  ctx.rotate(Math.max(-0.4,Math.min(0.4,vy*0.04)));
+  ctx.font=`${32+Math.sin(bird.wobble)*3}px serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.shadowColor='#ffffaa';ctx.shadowBlur=glow*25+8;ctx.fillText('⭐',0,0);ctx.restore();
+  bird.wobble+=0.09;
+}
+
+function drawStarShape(cx,cy,r,color,alpha){
+  ctx.save();ctx.globalAlpha=alpha;ctx.beginPath();
+  for(let i=0;i<10;i++){const a=Math.PI/5*i-Math.PI/2;const rad=i%2===0?r:r*0.4;if(i===0)ctx.moveTo(cx+rad*Math.cos(a),cy+rad*Math.sin(a));else ctx.lineTo(cx+rad*Math.cos(a),cy+rad*Math.sin(a));}
+  ctx.closePath();ctx.fillStyle=color;ctx.fill();ctx.restore();
+}
+
+function drawParticles(){
+  for(const p of particles){
+    if(p.shape==='star')drawStarShape(p.x,p.y,p.size*p.life,p.color,p.life*0.9);
+    else{ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);ctx.fillStyle=p.color;ctx.globalAlpha=p.life*0.9;ctx.fill();ctx.globalAlpha=1;}
+    p.x+=p.vx;p.y+=p.vy;p.vy+=0.07;p.life-=p.decay;
+  }
+}
+
+function drawCollectibles(){
+  for(const c of collectibles){
+    if(c.collected)continue;
+    const pulse=1+Math.sin(c.pulsePhase)*0.1;c.pulsePhase+=0.07;c.wobble+=c.wobbleSpeed;c.spin+=c.spinSpeed;
+    const dy2=c.y+Math.sin(c.wobble)*9;
+    ctx.save();ctx.translate(c.x,dy2);ctx.rotate(c.spin);ctx.scale(pulse,pulse);
+    const haloGrd=ctx.createRadialGradient(0,0,0,0,0,c.size*1.5);
+    haloGrd.addColorStop(0,`hsla(${(c.hue+hueShift)%360},100%,70%,0.28)`);
+    haloGrd.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.beginPath();ctx.arc(0,0,c.size*1.5,0,Math.PI*2);ctx.fillStyle=haloGrd;ctx.fill();
+    ctx.font=`${c.size}px serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.shadowColor='white';ctx.shadowBlur=14;ctx.fillText(c.emoji,0,0);ctx.restore();
+    c.x-=c.speed;
+  }
+}
+
+function drawFloatingTexts(){
+  for(const ft of floatingTexts){
+    ctx.save();ctx.globalAlpha=Math.min(1,ft.life);
+    ctx.font=`bold ${14+ft.life*4}px Fredoka One,sans-serif`;
+    ctx.fillStyle='#ffee44';ctx.textAlign='center';ctx.shadowColor='#ff8800';ctx.shadowBlur=12;
+    ctx.fillText(ft.text,ft.x,ft.y);ctx.restore();
+    ft.x+=ft.vx;ft.y+=ft.vy;ft.vy*=0.95;ft.life-=0.016;
+  }
+}
+
+function drawFlash(){
+  if(flashAlpha>0){ctx.fillStyle=flashColor;ctx.globalAlpha=flashAlpha;ctx.fillRect(0,0,canvas.width,canvas.height);ctx.globalAlpha=1;flashAlpha-=0.035;}
+}
+
+// ══ Singing stats update ══════════════════════════════════
+function updateSingStats(pitch,volume){
+  if(!pitchActive){gStats.sustainStreak=0;gStats.perfectStreak=0;return;}
+  gStats.totalSingFrames++;
+
+  // sustain — holding a steady note
+  if(gStats.prevPitch>0&&Math.abs(pitch-gStats.prevPitch)<15){
+    gStats.sustainStreak++;gStats.perfectStreak++;
+    if(gStats.sustainStreak>gStats.maxSustainStreak)gStats.maxSustainStreak=gStats.sustainStreak;
+  }else if(gStats.prevPitch>0&&Math.abs(pitch-gStats.prevPitch)>30){
+    // smooth melodic move
+    gStats.melodyMoves++;gStats.sustainStreak=0;gStats.perfectStreak=0;
+  }else{gStats.sustainStreak=0;gStats.perfectStreak=0;}
+
+  // range tracking
+  if(pitch>gStats.highestPitch)gStats.highestPitch=pitch;
+  if(pitch<gStats.lowestPitch&&pitch>60)gStats.lowestPitch=pitch;
+  gStats.pitchRange=gStats.highestPitch-gStats.lowestPitch;
+  gStats.prevPitch=pitch;
+}
+
+// ══ HUD updates ═══════════════════════════════════════════
+const scoreEl=document.getElementById('score-display');
+const comboEl=document.getElementById('combo-display');
+const noteEl=document.getElementById('note-display');
+const singFillEl=document.getElementById('sing-fill');
+const karaokeEl=document.getElementById('karaoke-text');
+
+// ══ Main loop ═════════════════════════════════════════════
+function gameLoop(){
+  requestAnimationFrame(gameLoop);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drawBg();
+
+  if(state!=='playing'){
+    ctx.save();ctx.translate(canvas.width*0.22,canvas.height*0.5+Math.sin(Date.now()/700)*14);
+    ctx.font='36px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.shadowColor='#ffffaa';ctx.shadowBlur=18;ctx.fillText('⭐',0,0);ctx.restore();
+    return;
+  }
+
+  const{pitch,volume}=detectPitch();
+  // volume tracked internally — no bar shown
+
+  const stablePitch=getSmoothedPitch(pitch);
+  if(stablePitch>0&&volume>0.012){smoothPitch=smoothPitch*0.6+stablePitch*0.4;pitchActive=true;}
+  else{pitchActive=false;if(pitchHistory.length>0&&volume<0.005)pitchHistory=[];}
+
+  // Pitch meter
+  const meterPct=pitchActive?Math.max(3,Math.min(97,(smoothPitch-PITCH_LOW)/(PITCH_HIGH-PITCH_LOW)*100)):0;
+  singFillEl.style.height=meterPct+'%';
+
+  // Note name display — 432Hz tuned
+  const centsBar=document.getElementById('cents-bar');
+  const centsNeedle=document.getElementById('cents-needle');
+  if(pitchActive){
+    const noteInfo=pitchToNote(smoothPitch);
+    const centsStr=noteInfo.cents===0?'♪':(noteInfo.cents>0?`+${noteInfo.cents}¢`:`${noteInfo.cents}¢`);
+    noteEl.textContent=`🎵 ${noteInfo.name}  ${centsStr}`;
+    noteEl.style.color=noteInfo.color;
+    noteEl.style.textShadow=`0 0 18px ${noteInfo.color}88`;
+    // Move cents needle: 0 cents = center, ±50 = edges
+    if(centsBar){
+      centsBar.style.display='block';
+      const pct=50+(noteInfo.cents/50)*45; // clamp ±50 cents
+      centsNeedle.style.left=Math.max(4,Math.min(96,pct))+'%';
+      centsNeedle.style.background=noteInfo.color;
+      centsNeedle.style.boxShadow=`0 0 10px ${noteInfo.color}`;
+    }
+  }else{
+    noteEl.textContent='🎤 Sing!';
+    noteEl.style.color='#ffee44';
+    noteEl.style.textShadow='0 0 12px #ffaa00';
+    if(centsBar)centsBar.style.display='none';
+  }
+
+
+  // Singing stats
+  updateSingStats(pitchActive?smoothPitch:0,volume);
+
+  // Karaoke encouragement
+  karaokeTimer--;
+  if(karaokeTimer<=0&&pitchActive){
+    karaokeEl.textContent=KARAOKE_LINES[karaokeIdx%KARAOKE_LINES.length];
+    karaokeEl.style.opacity='1';
+    karaokeIdx++;karaokeTimer=200;
+    setTimeout(()=>karaokeEl.style.opacity='0',3000);
+  }
+
+  // Bird physics
+  if(pitchActive){
+    const targetY=pitchToY(smoothPitch);
+    const dy=targetY - bird.y;
+    // Smooth but responsive — follows pitch directly
+    bird.vy=bird.vy*0.65 + dy*0.22;
+    bird.glow=Math.min(1,bird.glow+0.12);
+  }else{
+    bird.vy+=0.38; // gentle gravity when silent
+    bird.glow=Math.max(0,bird.glow-0.05);
+  }
+  bird.vy=Math.max(-14,Math.min(14,bird.vy));
+  bird.y+=bird.vy;
+  const margin=20;
+  if(bird.y<margin){bird.y=margin;bird.vy=Math.abs(bird.vy)*0.3;}
+  if(bird.y>canvas.height-margin){bird.y=canvas.height-margin;bird.vy=-Math.abs(bird.vy)*0.3;}
+  bird.trail.push({x:bird.x,y:bird.y});
+  if(bird.trail.length>22)bird.trail.shift();
+  // Pitch ribbon — floats to right of bird, colored by current note
+  const noteInfo2=pitchActive?pitchToNote(smoothPitch):{name:'',color:'rgba(255,255,255,0.15)',cents:0};
+  const ribY=pitchActive?pitchToY(smoothPitch):bird.y;
+  pitchRibbon.push({rx:bird.x+32,ry:ribY,color:noteInfo2.color,active:pitchActive});
+  if(pitchRibbon.length>80)pitchRibbon.shift();
+
+  // Spawn
+  frameCount++;
+  if(frameCount%80===0)spawnCollectible();
+
+  // Collect
+  for(const c of collectibles){
+    if(c.collected)continue;
+    const dx=bird.x-c.x,dy2=bird.y-(c.y+Math.sin(c.wobble)*9);
+    if(Math.sqrt(dx*dx+dy2*dy2)<c.size*0.9+16){
+      c.collected=true;score++;combo++;comboTimer=115;
+      if(combo>gStats.bestCombo)gStats.bestCombo=combo;
+      spawnParticles(c.x,c.y);
+      flashColor=FLASH[Math.floor(Math.random()*FLASH.length)];flashAlpha=0.17;
+      const txt=combo>=10?`🔥🔥 ${combo}x MEGA!!`:combo>=5?`🔥 ${combo}x COMBO!!`:combo>=3?`⚡ ${combo}x!`:'✨ +1';
+      spawnFloat(c.x,c.y-24,txt);
+      scoreEl.textContent='✨ '+score;
+      scoreEl.style.transform='scale(1.4)';setTimeout(()=>scoreEl.style.transform='scale(1)',160);
+      checkAwards();checkLevelUp();
+    }
+  }
+
+  if(comboTimer>0){
+    comboTimer--;
+    if(combo>1){comboEl.style.opacity='1';comboEl.textContent=combo>=10?`🔥🔥 ${combo}x MEGA!!`:combo>=5?`🔥 ${combo}x COMBO!!`:`⚡ ${combo}x`;}
+  }else{combo=0;comboEl.style.opacity='0';}
+
+  collectibles=collectibles.filter(c=>c.x>-70);
+  particles=particles.filter(p=>p.life>0);
+  floatingTexts=floatingTexts.filter(f=>f.life>0);
+
+  // Check singing milestone awards every 2s
+  if(frameCount%120===0)checkAwards();
+
+  drawPitchRibbon();drawCollectibles();drawParticles();drawBird();drawFloatingTexts();drawFlash();
+}
+
+// ══ End game ══════════════════════════════════════════════
+function endGame(){
+  state='end';
+  document.getElementById('stop-btn').style.display='none';
+  document.getElementById('karaoke-text').style.opacity='0';
+  
+  document.getElementById('final-score-num').textContent=score;
+  const scores=getScores();
+  const isTop=score>0&&(!scores.length||score>=scores[0].pts);
+  document.getElementById('high-score-note').textContent=isTop?'🏆 New top score!':scores.length?`Best: ✨ ${scores[0].pts}`:'';
+  // Show earned badges
+  const badgeEl=document.getElementById('earned-badges');
+  if(gStats.earnedAwards.length){
+    badgeEl.innerHTML=gStats.earnedAwards.map(a=>`<div class="badge-chip earned">${a.emoji} ${a.name}</div>`).join('');
+  }else{badgeEl.innerHTML='<div style="color:rgba(255,255,255,0.3);font-size:0.8rem;text-align:center">Sing more to earn awards! 🎤</div>';}
+  renderLeaderboard(document.getElementById('lb-list-end'));
+  drawScoreCard('',score,gStats.earnedAwards);
+  document.getElementById('end-screen').style.display='flex';
+}
+document.getElementById('stop-btn').addEventListener('click',endGame);
+
+document.getElementById('submit-btn').addEventListener('click',()=>{
+  const name=document.getElementById('name-input').value.trim()||'Anonymous';
+  const scores=saveScore(name,score,gStats.earnedAwards);
+  const rank=scores.findIndex(s=>s.name===name&&s.pts===score);
+  renderLeaderboard(document.getElementById('lb-list-end'),rank);
+  renderLeaderboard(document.getElementById('lb-list'));
+  drawScoreCard(name,score,gStats.earnedAwards);
+  const sb=document.getElementById('submit-btn');sb.textContent='✅ Submitted!';sb.disabled=true;sb.style.background='linear-gradient(135deg,#44aa88,#44ddaa)';
+});
+document.getElementById('download-btn').addEventListener('click',()=>{
+  const a=document.createElement('a');a.download='voicejoy-score.png';a.href=document.getElementById('score-card').toDataURL();a.click();
+});
+document.getElementById('copy-btn').addEventListener('click',()=>{
+  const name=document.getElementById('name-input').value.trim()||'Anonymous';
+  const badges=gStats.earnedAwards.map(a=>a.emoji).join('');
+  navigator.clipboard.writeText(`I scored ✨ ${score} on Voice Joy! ${badges}\n🌈 Awesome Love Games — sing to fly! 💖`).then(()=>{
+    const b=document.getElementById('copy-btn');b.textContent='✅ Copied!';setTimeout(()=>b.textContent='📋 Copy Score',2200);
+  });
+});
+document.getElementById('play-again-btn').addEventListener('click',()=>{
+  document.getElementById('end-screen').style.display='none';
+  document.getElementById('submit-btn').textContent='Submit to Leaderboard 🏆';
+  document.getElementById('submit-btn').disabled=false;document.getElementById('submit-btn').style.background='';
+  document.getElementById('card-wrap').style.display='none';
+  resetGame();state='playing';document.getElementById('stop-btn').style.display='block';
+  
+});
+
+// ══ Start ═════════════════════════════════════════════════
+document.getElementById('start-btn').addEventListener('click',async()=>{
+  const btn=document.getElementById('start-btn');
+  const errEl=document.getElementById('mic-error');
+  errEl.style.display='none';
+
+  if(!audioReady){
+    btn.textContent='🎤 Starting...';
+    btn.disabled=true;
+    try{
+      await initAudio();
+    }catch(e){
+      btn.textContent='Tap to Retry 🎤';
+      btn.disabled=false;
+      errEl.textContent='⚠️ '+e.message;
+      errEl.style.display='block';
+      return;
+    }
+    btn.disabled=false;
+  }
+
+  // All good — launch the game!
+  renderLeaderboard(document.getElementById('lb-list'));
+  resetGame();
+  state='playing';
+  document.getElementById('start-overlay').style.display='none';
+  document.getElementById('stop-btn').style.display='block';
+});
+
+// Catch any uncaught errors and show them on screen
+window.onerror = function(msg, src, line) {
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:rgba(255,0,0,0.85);color:#fff;padding:12px;font-size:0.75rem;z-index:9999;font-family:monospace;';
+  d.textContent = '⚠️ ' + msg + ' (line ' + line + ')';
+  document.body.appendChild(d);
+  return false;
+};
+
+// Start game loop after DOM is fully ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', gameLoop);
+} else {
+  gameLoop();
+}
+</script>
+</body>
+</html>
