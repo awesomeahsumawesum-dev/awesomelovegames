@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Voice Joy ✨ Sing to Fly!</title>
+<title>Love Voice ✨ Sing to Fly!</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&family=Fredoka+One&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -214,7 +214,7 @@ canvas{display:block;}
 <!-- START -->
 <div class="overlay" id="start-overlay">
   <div style="height:14px"></div>
-  <h1>Voice Joy</h1>
+  <h1>Love Voice</h1>
   <div class="emoji-row">🎤 🌈 💖 ✨</div>
   <p class="tagline">
     <strong style="color:#ffee44">Sing high → fly up 🚀</strong><br>
@@ -596,7 +596,7 @@ function drawScoreCard(name,pts,badgeList){
   rb.forEach((col,i)=>{x.fillStyle=col;x.fillRect(i*(W/6),0,W/6,7);});
   x.font='48px serif';x.textAlign='center';x.textBaseline='middle';
   x.shadowColor='#ffff88';x.shadowBlur=20;x.fillText('🎤',W/2,58);x.shadowBlur=0;
-  x.font='bold 13px Nunito,sans-serif';x.fillStyle='rgba(255,255,255,0.35)';x.fillText('VOICE JOY · AWESOME LOVE GAMES',W/2,94);
+  x.font='bold 13px Nunito,sans-serif';x.fillStyle='rgba(255,255,255,0.35)';x.fillText('LOVE VOICE · AWESOME LOVE GAMES',W/2,94);
   x.font='bold 22px Nunito,sans-serif';x.fillStyle='#fff';x.shadowColor='#ff88cc';x.shadowBlur=10;x.fillText(name||'Anonymous',W/2,124);x.shadowBlur=0;
   const sg=x.createLinearGradient(W/2-80,0,W/2+80,0);
   sg.addColorStop(0,'#ff88cc');sg.addColorStop(0.5,'#ffee44');sg.addColorStop(1,'#88ffcc');
@@ -1214,12 +1214,12 @@ document.getElementById('submit-btn').addEventListener('click',()=>{
   const sb=document.getElementById('submit-btn');sb.textContent='✅ Submitted!';sb.disabled=true;sb.style.background='linear-gradient(135deg,#44aa88,#44ddaa)';
 });
 document.getElementById('download-btn').addEventListener('click',()=>{
-  const a=document.createElement('a');a.download='voicejoy-score.png';a.href=document.getElementById('score-card').toDataURL();a.click();
+  const a=document.createElement('a');a.download='lovevoice-score.png';a.href=document.getElementById('score-card').toDataURL();a.click();
 });
 document.getElementById('copy-btn').addEventListener('click',()=>{
   const name=document.getElementById('name-input').value.trim()||'Anonymous';
   const badges=gStats.earnedAwards.map(a=>a.emoji).join('');
-  navigator.clipboard.writeText(`I scored ✨ ${score} on Voice Joy! ${badges}\n🌈 Awesome Love Games — sing to fly! 💖`).then(()=>{
+  navigator.clipboard.writeText(`I scored ✨ ${score} on Love Voice! ${badges}\n🌈 Awesome Love Games — sing to fly! 💖`).then(()=>{
     const b=document.getElementById('copy-btn');b.textContent='✅ Copied!';setTimeout(()=>b.textContent='📋 Copy Score',2200);
   });
 });
