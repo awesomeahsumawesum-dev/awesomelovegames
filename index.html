@@ -78,7 +78,7 @@ body::after{
   box-shadow:inset 0 0 180px rgba(0,0,0,0.55);
 }
 
-/* ══ INTRO OVERLAY — shows the hero image full-screen for 4s, then fades ══ */
+/* ══ INTRO OVERLAY — shows the hero image full-screen for 1s, then fades ══ */
 .intro-overlay{
   position:fixed;inset:0;z-index:1000;
   display:flex;align-items:center;justify-content:center;
@@ -109,7 +109,7 @@ body::after{
     0 30px 70px rgba(0,0,0,0.55),
     0 0 90px rgba(255,179,71,0.15);
   aspect-ratio:1/1;
-  animation:sceneZoom 4.2s ease-out forwards;
+  animation:sceneZoom 1s ease-out forwards;
 }
 @keyframes sceneZoom{0%{transform:scale(0.94);}100%{transform:scale(1.03);}}
 
@@ -323,7 +323,7 @@ footer{position:relative;z-index:1;text-align:center;padding:30px 24px 36px;}
 <div class="sparkle-layer" id="sparkles"></div>
 <div class="emoji-layer" id="emojiLayer"></div>
 
-<!-- Intro overlay: hero image shown for 4s, then fades away -->
+<!-- Intro overlay: hero image shown for 1s, then fades away -->
 <div class="intro-overlay" id="introOverlay">
   <div class="scene-frame" id="sceneFrame">
     <img src="hero.png" alt="A cozy hand-illustrated arcade workshop tower covered in heart signs, with kids playing games on laptops, tablets, and cabinets, a delivery truck winding up a curved road, and a workbench scattered with retro game icons." />
@@ -487,7 +487,7 @@ const pageContent = document.getElementById('pageContent');
 setTimeout(() => {
   introOverlay.classList.add('intro-hide');
   pageContent.classList.add('page-show');
-}, 4000);
+}, 1000);
 
 // Allow tapping the intro to skip it early
 introOverlay.addEventListener('click', () => {
